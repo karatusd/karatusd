@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: SHIFT-1.0
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
-
-import "hardhat/console.sol";
 
 contract Multisig {
     enum Operation {
@@ -19,7 +17,20 @@ contract Multisig {
     // );
     bytes32 private constant SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
 
-    event ApproveHash(bytes32 indexed approvedHash, address indexed owner);
+    event ApproveHash(
+        bytes32 indexed approvedHash,
+        address indexed owner,
+        address to,
+        uint256 value,
+        bytes data,
+        Operation operation,
+        uint256 safeTxGas,
+        uint256 baseGas,
+        uint256 gasPrice,
+        address gasToken,
+        address payable refundReceiver,
+        uint256 nonce
+    );
     event ExecutionFailure(bytes32 indexed txHash, uint256 payment);
     event ExecutionSuccess(bytes32 indexed txHash, uint256 payment);
     event SafeReceived(address indexed sender, uint256 value);
@@ -27,29 +38,29 @@ contract Multisig {
     uint256 public nonce;
 
     mapping(address => address) internal owners;
-    uint256 internal ownerCount;
-    uint256 internal threshold;
+    uint256 internal immutable ownerCount;
+    uint256 internal immutable threshold;
 
     address internal constant SENTINEL_OWNERS = address(0x1);
 
-    // Mapping to keep track of all message hashes that have been approved by ALL REQUIRED owners
+    // mapping to keep track of all message hashes that have been approved by ALL REQUIRED owners
     mapping(bytes32 => uint256) public signedMessages;
-    // Mapping to keep track of all hashes (message or transaction) that have been approved by ANY owners
+    // mapping to keep track of all hashes (message or transaction) that have been approved by ANY owners
     mapping(address => mapping(bytes32 => uint256)) public approvedHashes;
 
     constructor(address[] memory _owners, uint256 _threshold) {
-        // Validate that threshold is smaller than number of added owners.
-        require(_threshold <= _owners.length, "GS201");
-        // There has to be at least one Safe owner.
-        require(_threshold >= 1, "GS202");
-        // Initializing Safe owners.
+        // validate that threshold is smaller than number of added owners
+        require(_threshold <= _owners.length, "Too big threshold");
+        // there has to be at least one Safe owner
+        require(_threshold >= 1, "Threshold can't be equal to zero");
+        // initializing Safe owners
         address currentOwner = SENTINEL_OWNERS;
         for (uint256 i = 0; i < _owners.length; i++) {
-            // Owner address cannot be null.
+            // owner address cannot be null
             address owner = _owners[i];
-            require(owner != address(0) && owner != SENTINEL_OWNERS && owner != address(this) && currentOwner != owner, "GS203");
-            // No duplicate owners allowed.
-            require(owners[owner] == address(0), "GS204");
+            require(owner != address(0) && owner != SENTINEL_OWNERS && owner != address(this) && currentOwner != owner, "Incorrect owner address");
+            // no duplicate owners allowed
+            require(owners[owner] == address(0), "Owners' addresses must not be repeated");
             owners[currentOwner] = owner;
             currentOwner = owner;
         }
@@ -63,8 +74,8 @@ contract Multisig {
     ///////////////////////////////
 
     /**
-     * @notice Returns the ID of the chain the contract is currently deployed on.
-     * @return The ID of the current chain as a uint256.
+     * @notice returns the ID of the chain the contract is currently deployed on
+     * @return the ID of the current chain as a uint256
      */
     function getChainId() public view returns (uint256) {
         uint256 id;
@@ -76,26 +87,26 @@ contract Multisig {
     }
 
     /**
-     * @dev Returns the domain separator for this contract, as defined in the EIP-712 standard.
-     * @return bytes32 The domain separator hash.
+     * @dev returns the domain separator for this contract, as defined in the EIP-712 standard
+     * @return bytes32 the domain separator hash
      */
     function domainSeparator() public view returns (bytes32) {
         return keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, getChainId(), this));
     }
 
     /**
-     * @notice Returns the pre-image of the transaction hash (see getTransactionHash).
-     * @param to Destination address.
-     * @param value Ether value.
-     * @param data Data payload.
-     * @param operation Operation type.
-     * @param safeTxGas Gas that should be used for the safe transaction.
-     * @param baseGas Gas costs for that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
-     * @param gasPrice Maximum gas price that should be used for this transaction.
-     * @param gasToken Token address (or 0 if ETH) that is used for the payment.
-     * @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-     * @param _nonce Transaction nonce.
-     * @return Transaction hash bytes.
+     * @notice returns the pre-image of the transaction hash (see getTransactionHash)
+     * @param to destination address
+     * @param value ether value
+     * @param data data payload
+     * @param operation operation type
+     * @param safeTxGas gas that should be used for the safe transaction
+     * @param baseGas gas costs for that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
+     * @param gasPrice maximum gas price that should be used for this transaction
+     * @param gasToken token address (or 0 if ETH) that is used for the payment
+     * @param refundReceiver address of receiver of gas payment (or 0 if tx.origin)
+     * @param _nonce transaction nonce
+     * @return transaction hash bytes
      */
     function encodeTransactionData(
         address to,
@@ -128,33 +139,33 @@ contract Multisig {
     }
 
     /**
-     * @notice Checks whether the signature provided is valid for the provided data and hash. Reverts otherwise.
-     * @param dataHash Hash of the data (could be either a message hash or transaction hash)
-     * @param data That should be signed (this is passed to an external validator contract)
-     * @param signatures Signature data that should be verified.
-     *                   Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
+     * @notice checks whether the signature provided is valid for the provided data and hash. Reverts otherwise
+     * @param dataHash hash of the data (could be either a message hash or transaction hash)
+     * @param data that should be signed (this is passed to an external validator contract)
+     * @param signatures signature data that should be verified
+     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
      */
     function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures) public view {
-        // Load threshold to avoid multiple storage loads
+        // load threshold to avoid multiple storage loads
         uint256 _threshold = threshold;
-        // Check that a threshold is set
-        require(_threshold > 0, "GS001");
+        // check that a threshold is set
+        require(_threshold > 0, "Threshold is not set");
         checkNSignatures(dataHash, data, signatures, _threshold);
     }
 
     /**
-     * @notice Checks whether the signature provided is valid for the provided data and hash. Reverts otherwise.
-     * @dev Since the EIP-1271 does an external call, be mindful of reentrancy attacks.
-     * @param dataHash Hash of the data (could be either a message hash or transaction hash)
-     * @param data That should be signed (this is passed to an external validator contract)
-     * @param signatures Signature data that should be verified.
-     *                   Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
-     * @param requiredSignatures Amount of required valid signatures.
+     * @notice checks whether the signature provided is valid for the provided data and hash. Reverts otherwise
+     * @dev since the EIP-1271 does an external call, be mindful of reentrancy attacks
+     * @param dataHash hash of the data (could be either a message hash or transaction hash)
+     * @param data that should be signed (this is passed to an external validator contract)
+     * @param signatures signature data that should be verified
+     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
+     * @param requiredSignatures amount of required valid signatures
      */
     function checkNSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures, uint256 requiredSignatures) public view {
-        // Check that the provided signature data is not too short
-        require(signatures.length >= requiredSignatures * 65, "GS020");
-        // There cannot be an owner with address 0.
+        // check that the provided signature data is not too short
+        require(signatures.length >= requiredSignatures * 65, "Insufficient number of signatures");
+        // there cannot be an owner with address 0
         address lastOwner = address(0);
         address currentOwner;
         uint8 v;
@@ -164,41 +175,39 @@ contract Multisig {
         for (i = 0; i < requiredSignatures; i++) {
             (v, r, s) = signatureSplit(signatures, i);
             if (v == 1) {
-                // If v is 1 then it is an approved hash
-                // When handling approved hashes the address of the approver is encoded into r
+                // if v is 1 then it is an approved hash
+                // when handling approved hashes the address of the approver is encoded into r
                 currentOwner = address(uint160(uint256(r)));
-                // Hashes are automatically approved by the sender of the message or when they have been pre-approved via a separate transaction
-                require(msg.sender == currentOwner || approvedHashes[currentOwner][dataHash] != 0, "GS025");
-            } else if (v > 30) {
-                // If v > 30 then default va (27,28) has been adjusted for eth_sign flow
-                // To support eth_sign and similar we adjust v and hash the messageHash with the Ethereum message prefix before applying ecrecover
-                currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
+                // hashes are automatically approved by the sender of the message or when they have been pre-approved via a separate transaction
+                require(msg.sender == currentOwner || approvedHashes[currentOwner][dataHash] != 0, "Not approved signature");
+            } else if (v >= 27) {
+                // if v > 30 then default va (27,28) has been adjusted for eth_sign flow
+                // to support eth_sign and similar we adjust v and hash the messageHash with the Ethereum message prefix before applying ecrecover
+                // currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
+                currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
             } else {
-                // Default is the ecrecover flow with the provided data hash
-                // Use ecrecover with the messageHash for EOA signatures
+                // default is the ecrecover flow with the provided data hash
+                // use ecrecover with the messageHash for EOA signatures
                 currentOwner = ecrecover(dataHash, v, r, s);
             }
-            console.log("currentOwner", currentOwner);
-            console.log("lastOwner", lastOwner);
-            console.log("owners[currentOwner]", owners[currentOwner]);
-            require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, "GS026");
+            require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, "Signature error");
             lastOwner = currentOwner;
         }
     }
 
     /**
-     * @notice Returns transaction hash to be signed by owners.
-     * @param to Destination address.
-     * @param value Ether value.
-     * @param data Data payload.
-     * @param operation Operation type.
-     * @param safeTxGas Fas that should be used for the safe transaction.
-     * @param baseGas Gas costs for data used to trigger the safe transaction.
-     * @param gasPrice Maximum gas price that should be used for this transaction.
-     * @param gasToken Token address (or 0 if ETH) that is used for the payment.
-     * @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-     * @param _nonce Transaction nonce.
-     * @return Transaction hash.
+     * @notice returns transaction hash to be signed by owners
+     * @param to destination address
+     * @param value ether value
+     * @param data data payload
+     * @param operation operation type
+     * @param safeTxGas fas that should be used for the safe transaction
+     * @param baseGas gas costs for data used to trigger the safe transaction
+     * @param gasPrice maximum gas price that should be used for this transaction
+     * @param gasToken token address (or 0 if ETH) that is used for the payment
+     * @param refundReceiver address of receiver of gas payment (or 0 if tx.origin)
+     * @param _nonce transaction nonce
+     * @return transaction hash
      */
     function getTransactionHash(
         address to,
@@ -215,17 +224,51 @@ contract Multisig {
         return keccak256(encodeTransactionData(to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, _nonce));
     }
 
+    /**
+     * @notice returns the number of required confirmations for a Safe transaction aka the threshold
+     * @return threshold number
+     */
+    function getThreshold() public view returns (uint256) {
+        return threshold;
+    }
+
+    /**
+     * @notice returns if `owner` is an owner of the Safe
+     * @return boolean if owner is an owner of the Safe
+     */
+    function isOwner(address owner) public view returns (bool) {
+        return owner != SENTINEL_OWNERS && owners[owner] != address(0);
+    }
+
+    /**
+     * @notice returns a list of Safe owners
+     * @return array of Safe owners
+     */
+    function getOwners() public view returns (address[] memory) {
+        address[] memory array = new address[](ownerCount);
+
+        // populate return array
+        uint256 index = 0;
+        address currentOwner = owners[SENTINEL_OWNERS];
+        while (currentOwner != SENTINEL_OWNERS) {
+            array[index] = currentOwner;
+            currentOwner = owners[currentOwner];
+            index++;
+        }
+        return array;
+    }
+
     ///////////////////////////////
     /// INTERNAL FUNCTIONS
     ///////////////////////////////
 
     /**
-     * @notice Handles the payment for a Safe transaction.
-     * @param gasUsed Gas used by the Safe transaction.
-     * @param baseGas Gas costs that are independent of the transaction execution (e.g. base transaction fee, signature check, payment of the refund).
-     * @param gasPrice Gas price that should be used for the payment calculation.
-     * @param gasToken Token address (or 0 if ETH) that is used for the payment.
-     * @return payment The amount of payment made in the specified token.
+     * @notice handles the payment for a Safe transaction
+     * @param gasUsed gas used by the Safe transaction
+     * @param baseGas gas costs that are independent of the transaction execution (e.g. base transaction fee, signature check, payment of the refund)
+     * @param gasPrice gas price that should be used for the payment calculation
+     * @param gasToken token address (or 0 if ETH) that is used for the payment
+     * @return payment The amount of payment made in the specified token
      */
     function handlePayment(
         uint256 gasUsed,
@@ -237,22 +280,22 @@ contract Multisig {
         // solhint-disable-next-line avoid-tx-origin
         address payable receiver = refundReceiver == address(0) ? payable(tx.origin) : refundReceiver;
         if (gasToken == address(0)) {
-            // For ETH we will only adjust the gas price to not be higher than the actual used gas price
+            // for ETH we will only adjust the gas price to not be higher than the actual used gas price
             payment = (gasUsed + baseGas) * (gasPrice < tx.gasprice ? gasPrice : tx.gasprice);
-            require(receiver.send(payment), "GS011");
+            require(receiver.send(payment), "Error when paying a transaction in native currency");
         } else {
             payment = (gasUsed + baseGas) * (gasPrice);
-            require(transferToken(gasToken, receiver, payment), "GS012");
+            require(transferToken(gasToken, receiver, payment), "Error when paying a transaction in token");
         }
     }
 
     /**
-     * @notice Transfers a token and returns a boolean if it was a success
-     * @dev It checks the return data of the transfer call and returns true if the transfer was successful.
-     *      It doesn't check if the `token` address is a contract or not.
-     * @param token Token that should be transferred
-     * @param receiver Receiver to whom the token should be transferred
-     * @param amount The amount of tokens that should be transferred
+     * @notice transfers a token and returns a boolean if it was a success
+     * @dev it checks the return data of the transfer call and returns true if the transfer was successful
+     *      it doesn't check if the `token` address is a contract or not
+     * @param token token that should be transferred
+     * @param receiver receiver to whom the token should be transferred
+     * @param amount the amount of tokens that should be transferred
      * @return transferred Returns true if the transfer was successful
      */
     function transferToken(address token, address receiver, uint256 amount) internal returns (bool transferred) {
@@ -277,16 +320,16 @@ contract Multisig {
     }
 
     /**
-     * @notice Splits signature bytes into `uint8 v, bytes32 r, bytes32 s`.
-     * @dev Make sure to perform a bounds check for @param pos, to avoid out of bounds access on @param signatures
-     *      The signature format is a compact form of {bytes32 r}{bytes32 s}{uint8 v}
-     *      Compact means uint8 is not padded to 32 bytes.
-     * @param pos Which signature to read.
-     *            A prior bounds check of this parameter should be performed, to avoid out of bounds access.
-     * @param signatures Concatenated {r, s, v} signatures.
-     * @return v Recovery ID or Safe signature type.
-     * @return r Output value r of the signature.
-     * @return s Output value s of the signature.
+     * @notice splits signature bytes into `uint8 v, bytes32 r, bytes32 s`
+     * @dev make sure to perform a bounds check for @param pos, to avoid out of bounds access on @param signatures
+     *      the signature format is a compact form of {bytes32 r}{bytes32 s}{uint8 v}
+     *      compact means uint8 is not padded to 32 bytes
+     * @param pos which signature to read
+     *            a prior bounds check of this parameter should be performed, to avoid out of bounds access
+     * @param signatures concatenated {r, s, v} signatures
+     * @return v Recovery ID or Safe signature type
+     * @return r Output value r of the signature
+     * @return s Output value s of the signature
      */
     function signatureSplit(bytes memory signatures, uint256 pos) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
         // solhint-disable-next-line no-inline-assembly
@@ -295,8 +338,8 @@ contract Multisig {
             r := mload(add(signatures, add(signaturePos, 0x20)))
             s := mload(add(signatures, add(signaturePos, 0x40)))
             /**
-             * Here we are loading the last 32 bytes, including 31 bytes
-             * of 's'. There is no 'mload8' to do this.
+             * here we are loading the last 32 bytes, including 31 bytes
+             * of 's'. There is no 'mload8' to do this
              * 'byte' is not working due to the Solidity parser, so lets
              * use the second best option, 'and'
              */
@@ -305,15 +348,15 @@ contract Multisig {
     }
 
     /**
-     * @notice Executes either a delegatecall or a call with provided parameters.
-     * @dev This method doesn't perform any sanity check of the transaction, such as:
+     * @notice executes either a delegatecall or a call with provided parameters
+     * @dev this method doesn't perform any sanity check of the transaction, such as:
      *      - if the contract at `to` address has code or not
-     *      It is the responsibility of the caller to perform such checks.
-     * @param to Destination address.
-     * @param value Ether value.
-     * @param data Data payload.
-     * @param operation Operation type.
-     * @return success boolean flag indicating if the call succeeded.
+     *      it is the responsibility of the caller to perform such checks
+     * @param to destination address
+     * @param value ether value
+     * @param data data payload
+     * @param operation operation type
+     * @return success boolean flag indicating if the call succeeded
      */
     function execute(
         address to,
@@ -339,63 +382,29 @@ contract Multisig {
         return a >= b ? a : b;
     }
 
-    /**
-     * @notice Returns the number of required confirmations for a Safe transaction aka the threshold.
-     * @return Threshold number.
-     */
-    function getThreshold() public view returns (uint256) {
-        return threshold;
-    }
-
-    /**
-     * @notice Returns if `owner` is an owner of the Safe.
-     * @return Boolean if owner is an owner of the Safe.
-     */
-    function isOwner(address owner) public view returns (bool) {
-        return owner != SENTINEL_OWNERS && owners[owner] != address(0);
-    }
-
-    /**
-     * @notice Returns a list of Safe owners.
-     * @return Array of Safe owners.
-     */
-    function getOwners() public view returns (address[] memory) {
-        address[] memory array = new address[](ownerCount);
-
-        // populate return array
-        uint256 index = 0;
-        address currentOwner = owners[SENTINEL_OWNERS];
-        while (currentOwner != SENTINEL_OWNERS) {
-            array[index] = currentOwner;
-            currentOwner = owners[currentOwner];
-            index++;
-        }
-        return array;
-    }
-
     ///////////////////////////////
     /// PUBLIC FUNCTIONS
     ///////////////////////////////
 
-    /** @notice Executes a `operation` {0: Call, 1: DelegateCall}} transaction to `to` with `value` (Native Currency)
-     *          and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
-     * @dev The fees are always transferred, even if the user transaction fails.
-     *      This method doesn't perform any sanity check of the transaction, such as:
+    /** @notice executes a `operation` {0: Call, 1: DelegateCall}} transaction to `to` with `value` (Native Currency)
+     *          and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`
+     * @dev the fees are always transferred, even if the user transaction fails
+     *      this method doesn't perform any sanity check of the transaction, such as:
      *      - if the contract at `to` address has code or not
      *      - if the `gasToken` is a contract or not
-     *      It is the responsibility of the caller to perform such checks.
-     * @param to Destination address of Safe transaction.
-     * @param value Ether value of Safe transaction.
-     * @param data Data payload of Safe transaction.
-     * @param operation Operation type of Safe transaction.
-     * @param safeTxGas Gas that should be used for the Safe transaction.
-     * @param baseGas Gas costs that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
-     * @param gasPrice Gas price that should be used for the payment calculation.
-     * @param gasToken Token address (or 0 if ETH) that is used for the payment.
-     * @param refundReceiver Address of receiver of gas payment (or 0 if tx.origin).
-     * @param signatures Signature data that should be verified.
-     *                   Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
-     * @return success Boolean indicating transaction's success.
+     *      it is the responsibility of the caller to perform such checks
+     * @param to destination address of Safe transaction
+     * @param value ether value of Safe transaction
+     * @param data data payload of Safe transaction
+     * @param operation operation type of Safe transaction
+     * @param safeTxGas gas that should be used for the Safe transaction
+     * @param baseGas gas costs that are independent of the transaction execution(e.g. base transaction fee, signature check, payment of the refund)
+     * @param gasPrice gas price that should be used for the payment calculation
+     * @param gasToken token address (or 0 if ETH) that is used for the payment
+     * @param refundReceiver address of receiver of gas payment (or 0 if tx.origin)
+     * @param signatures signature data that should be verified
+     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
+     * @return success Boolean indicating transaction's success
      */
     function execTransaction(
         address to,
@@ -410,42 +419,42 @@ contract Multisig {
         bytes memory signatures
     ) public payable virtual returns (bool success) {
         bytes32 txHash;
-        // Use scope here to limit variable lifetime and prevent `stack too deep` errors
+        // use scope here to limit variable lifetime and prevent `stack too deep` errors
         {
             bytes memory txHashData = encodeTransactionData(
-                // Transaction info
+                // transaction info
                 to,
                 value,
                 data,
                 operation,
                 safeTxGas,
-                // Payment info
+                // payment info
                 baseGas,
                 gasPrice,
                 gasToken,
                 refundReceiver,
-                // Signature info
+                // signature info
                 nonce
             );
-            // Increase nonce and execute transaction.
+            // increase nonce and execute transaction.
             nonce++;
             txHash = keccak256(txHashData);
             checkSignatures(txHash, txHashData, signatures);
         }
-        // We require some gas to emit the events (at least 2500) after the execution and some to perform code until the execution (500)
-        // We also include the 1/64 in the check that is not send along with a call to counteract potential shortings because of EIP-150
-        require(gasleft() >= max((safeTxGas * 64) / 63, safeTxGas + 2500) + 500, "GS010");
-        // Use scope here to limit variable lifetime and prevent `stack too deep` errors
+        // we require some gas to emit the events (at least 2500) after the execution and some to perform code until the execution (500)
+        // we also include the 1/64 in the check that is not send along with a call to counteract potential shortings because of EIP-150
+        require(gasleft() >= max((safeTxGas * 64) / 63, safeTxGas + 2500) + 500, "Insufficient gas");
+        // use scope here to limit variable lifetime and prevent `stack too deep` errors
         {
             uint256 gasUsed = gasleft();
-            // If the gasPrice is 0 we assume that nearly all available gas can be used (it is always more than safeTxGas)
-            // We only substract 2500 (compared to the 3000 before) to ensure that the amount passed is still higher than safeTxGas
+            // if the gasPrice is 0 we assume that nearly all available gas can be used (it is always more than safeTxGas)
+            // we only substract 2500 (compared to the 3000 before) to ensure that the amount passed is still higher than safeTxGas
             success = execute(to, value, data, operation, gasPrice == 0 ? (gasleft() - 2500) : safeTxGas);
             gasUsed = gasUsed - gasleft();
-            // If no safeTxGas and no gasPrice was set (e.g. both are 0), then the internal tx is required to be successful
-            // This makes it possible to use `estimateGas` without issues, as it searches for the minimum gas where the tx doesn't revert
-            require(success || safeTxGas != 0 || gasPrice != 0, "GS013");
-            // We transfer the calculated tx costs to the tx.origin to avoid sending it to intermediate contracts that have made calls
+            // if no safeTxGas and no gasPrice was set (e.g. both are 0), then the internal tx is required to be successful
+            // this makes it possible to use `estimateGas` without issues, as it searches for the minimum gas where the tx doesn't revert
+            require(success || safeTxGas != 0 || gasPrice != 0, "Error during call");
+            // we transfer the calculated tx costs to the tx.origin to avoid sending it to intermediate contracts that have made calls
             uint256 payment = 0;
             if (gasPrice > 0) {
                 payment = handlePayment(gasUsed, baseGas, gasPrice, gasToken, refundReceiver);
@@ -456,27 +465,66 @@ contract Multisig {
     }
 
     /**
-     * @notice Marks hash `hashToApprove` as approved.
-     * @dev This can be used with a pre-approved hash transaction signature.
-     *      IMPORTANT: The approved hash stays approved forever. There's no revocation mechanism, so it behaves similarly to ECDSA signatures
-     * @param hashToApprove The hash to mark as approved for signatures that are verified by this contract.
+     * @notice marks hash `hashToApprove` as approved
+     * @dev this can be used with a pre-approved hash transaction signature
+     *      IMPORTANT: the approved hash stays approved forever. There's no revocation mechanism, so it behaves similarly to ECDSA signatures
+     * @param hashToApprove the hash to mark as approved for signatures that are verified by this contract
      */
-    function approveHash(bytes32 hashToApprove) external {
-        require(owners[msg.sender] != address(0), "GS030");
+    function approveHash(
+        address to,
+        uint256 value,
+        bytes calldata data,
+        Operation operation,
+        uint256 safeTxGas,
+        uint256 baseGas,
+        uint256 gasPrice,
+        address gasToken,
+        address payable refundReceiver,
+        bytes32 hashToApprove
+    ) external {
+        require(owners[msg.sender] != address(0), "Now owner");
+
+        bytes32 txHash = getTransactionHash(
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            nonce
+        );
+        require(txHash == hashToApprove, "Incorrect data to approve");
+
         approvedHashes[msg.sender][hashToApprove] = 1;
-        emit ApproveHash(hashToApprove, msg.sender);
+        emit ApproveHash(
+            hashToApprove,
+            msg.sender,
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            nonce
+        );
     }
 
     /**
-     * @dev Performs a delegatecall on a targetContract in the context of self.
-     * Internally reverts execution to avoid side effects (making it static).
+     * @dev performs a delegatecall on a targetContract in the context of self
+     * internally reverts execution to avoid side effects (making it static)
      *
-     * This method reverts with data equal to `abi.encode(bool(success), bytes(response))`.
-     * Specifically, the `returndata` after a call to this method will be:
-     * `success:bool || response.length:uint256 || response:bytes`.
+     * this method reverts with data equal to `abi.encode(bool(success), bytes(response))`
+     * specifically, the `returndata` after a call to this method will be:
+     * `success:bool || response.length:uint256 || response:bytes`
      *
-     * @param targetContract Address of the contract containing the code to execute.
-     * @param calldataPayload Calldata that should be sent to the target contract (encoded method name and arguments).
+     * @param targetContract address of the contract containing the code to execute
+     * @param calldataPayload calldata that should be sent to the target contract (encoded method name and arguments)
      */
     function simulateAndRevert(address targetContract, bytes memory calldataPayload) external {
         // solhint-disable-next-line no-inline-assembly
