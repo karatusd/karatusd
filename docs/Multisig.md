@@ -14,8 +14,6 @@ If the number of signatures is greater than or equal to the threshhold and all s
 
 Further checking of the signatures takes place in the `checkNSignatures` function.
 
-It is considered that the standard ether signature from EOA wallet (branch `v >= 27`) will be mostly used
-
 ### Function approveHash
 Allow owner to approve hash (just another way to sign transaction).
 
@@ -28,3 +26,8 @@ If the message was signed using the approveHash function, you no longer need to 
 
 ### Function simulateAndRevert
 Simulation function to check the calldata
+
+## The basic method of operation of the multisig is as follows:
+1) A transaction is proposed (the initiator is the first to sign it using the `approveHash` function)
+2) Signatures are collected from the other owners of the multisig using the same method (using the `approveHash` function) until the required number of signatures is collected.
+3) The last signer initiates the transaction
