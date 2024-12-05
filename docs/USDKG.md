@@ -1,10 +1,10 @@
-# USDKG is ERC20 mintable and pausable token compatible with SafeERC20 library.
+# USDKG is gold-backed stablecoin represented as ERC20 token.
 
 The contract is managed by two addresses (multisigs): `Owner` and `Compliance`.
 
 `Owner` can:
-- Lock any transfers of this token by calling `pause` function
-- Unock transfers of this token by calling `unpause` function
+- Lock any transfers of token by calling `pause` function
+- Unlock transfers of token by calling `unpause` function
 - Mint new tokens to particular address by calling `issue` function
 - Burn some tokens from particular address by calling `redeem` function
 - Set fee parameters which, in basic terms, are equal to `0` and can reach a maximum of `0.2%`
@@ -47,49 +47,49 @@ Lock any transfers of this token.
 
 #### Additional requirements for calling the function:
 - The protocol has not been blocked by the `pause` function
-- The sender is `owner`
+- Authorized role: `owner`
 
 ### Function `unpause`
 Unlock any transfers of this token.
 
 #### Additional requirements for calling the function:
 - The protocol has been blocked by the `pause` function
-- The sender is `owner`
+- Authorized role: `owner`
 
 ### Function `addBlackList`
 Add specified address to black list.
 
 #### Additional requirements for calling the function:
-- The sender is `compliance`
+- Authorized role: `compliance`
 
 ### Function `removeBlackList`
 Remove specified address from black list.
 
 #### Additional requirements for calling the function:
-- The sender is `compliance`
+- Authorized role: `compliance`
 
 ### Function `destroyBlackFunds`
 Burn all tokens from the specified address.
 
 #### Additional requirements for calling the function:
-- The sender is `compliance`
+- Authorized role: `compliance`
 - Specified address is blacklisted
 
 ### Function `issue`
 Mint specified amount to specified address.
 
 #### Additional requirements for calling the function:
-- The sender is `owner`
+- Authorized role: `owner`
 
 ### Function `redeem`
 Burn specified amount from specified address.
 
 #### Additional requirements for calling the function:
-- The sender is `owner`
+- Authorized role: `owner`
 
 ### Function `setParams`
 Update fees values.
 
 #### Additional requirements for calling the function:
-- The sender is `owner`
+- Authorized role: `owner`
 - New value is less then `MAX_BASIS_POINTS`
