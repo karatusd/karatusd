@@ -174,22 +174,13 @@ contract Multisig {
         uint256 i;
         for (i = 0; i < requiredSignatures; i++) {
             (v, r, s) = signatureSplit(signatures, i);
-            if (v == 1) {
-                // if v is 1 then it is an approved hash
-                // when handling approved hashes the address of the approver is encoded into r
-                currentOwner = address(uint160(uint256(r)));
-                // hashes are automatically approved by the sender of the message or when they have been pre-approved via a separate transaction
-                require(msg.sender == currentOwner || approvedHashes[currentOwner][dataHash] != 0, "Not approved signature");
-            } else if (v >= 27) {
-                // if v > 30 then default va (27,28) has been adjusted for eth_sign flow
-                // to support eth_sign and similar we adjust v and hash the messageHash with the Ethereum message prefix before applying ecrecover
-                // currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
-                currentOwner = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v, r, s);
-            } else {
-                // default is the ecrecover flow with the provided data hash
-                // use ecrecover with the messageHash for EOA signatures
-                currentOwner = ecrecover(dataHash, v, r, s);
-            }
+            require(v == 1);
+            // if v is 1 then it is an approved hash
+            // when handling approved hashes the address of the approver is encoded into r
+            currentOwner = address(uint160(uint256(r)));
+            // hashes are automatically approved by the sender of the message or when they have been pre-approved via a separate transaction
+            require(msg.sender == currentOwner || approvedHashes[currentOwner][dataHash] != 0, "Not approved signature");
+
             require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, "Signature error");
             lastOwner = currentOwner;
         }
