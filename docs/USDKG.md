@@ -1,5 +1,6 @@
 # USDKG is gold-backed stablecoin represented as ERC20 token.
 
+## Role Permissions
 The contract is managed by two addresses (multisigs): `Owner` and `Compliance`.
 
 `Owner` can:
@@ -16,7 +17,7 @@ The contract is managed by two addresses (multisigs): `Owner` and `Compliance`.
 
 These addresses are set at the time the contract is deployed and can no longer be changed.
 
-## The following functionality is implemented in the contract:
+## Core Functions
 
 ### Function `transfer`
 Allows the user to send a certain number of tokens to another address.
@@ -41,6 +42,8 @@ If the fee value is not zero, it will be deducted from the transferred amount.
 Approve the passed address to spend the specified amount of tokens on behalf of sender
 
 If the specified size is equal to `type(uint256).max` then the specified address gets unlimited approval
+
+## Administrative Functions
 
 ### Function `pause`
 Lock any transfers of this token.
@@ -75,6 +78,8 @@ Burn all tokens from the specified address.
 - Authorized role: `compliance`
 - Specified address is blacklisted
 
+## Minting and Burning Tokens
+
 ### Function `issue`
 Mint specified amount to specified address.
 
@@ -86,6 +91,8 @@ Burn specified amount from specified address.
 
 #### Additional requirements for calling the function:
 - Authorized role: `owner`
+
+## Fee Management
 
 ### Function `setParams`
 Update fees values.
