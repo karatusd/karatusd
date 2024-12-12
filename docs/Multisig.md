@@ -5,7 +5,7 @@ This contract has a set of owners and a treshold that are specified in the const
 
 ## The following functionality is implemented in the contract:
 
-### Function execTransaction
+### Function `execTransaction`
 Executes a `operation` {0: Call, 1: DelegateCall} transaction to `to` with `value` (Native Currency) and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
 
 Also, accepts a set of signatures as a parameter. It is important that the signatures should be sorted by the addresses of the owners (signers) from smaller to larger to avoid double signatures.
@@ -14,17 +14,24 @@ If the number of signatures is greater than or equal to the threshhold and all s
 
 Further checking of the signatures takes place in the `checkNSignatures` function.
 
-### Function approveHash
-Allow owner to approve hash (just another way to sign transaction).
+### Function `approveHash`
+Allow owner to approve hash (The main way to sign transaction).
 
-If the message was signed using the approveHash function, you no longer need to sign it with a wallet, and the signature will look like this:
-```
+After the transaction has been signed using the `approveHash` function, the offchain creates a signature that looks like this:
+```ts
 "0x000000000000000000000000" + owner_addr.slice(2,) + "000000000000000000000000" + owner_addr.slice(2,) + "01"
 ```
 
 - Authorized role: owner
 
-### Function simulateAndRevert
+### Function `checkNSignatures`
+First, it checks the length of the signatures, making sure there are enough of them.
+Then it parses the signatures and starts iteratively working with each one:
+1) Extracts the signer's address from the signature
+2) Verifies that the specified address has signed the transaction passed for verification using the `approveHash` function.
+3) Checks that the signers are sorted strictly in ascending order.
+
+### Function `simulateAndRevert`
 Simulation function to check the calldata
 
 ## The basic method of operation of the multisig is as follows:
