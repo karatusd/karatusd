@@ -203,13 +203,13 @@ contract USDKG is IERC20 {
     // these tokens are withdrawn from the owner address
     // if the balance must be enough to cover the redeem
     // or the call will fail
-    // @param _amount number of tokens to be issued
-    function redeem(address _from, uint256 amount) public onlyOwner {
+    // @param _amount number of tokens to be burnt
+    function redeem(uint256 amount) public onlyOwner {
         require(_totalSupply >= amount, "not enough tokens to redeem");
-        require(balances[_from] >= amount, "not enough tokens to redeem");
+        require(balances[owner] >= amount, "not enough tokens to redeem");
 
         _totalSupply -= amount;
-        balances[_from] -= amount;
+        balances[owner] -= amount;
         emit Redeem(amount);
     }
 
