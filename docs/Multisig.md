@@ -1,16 +1,16 @@
 # Multisig contract is based on Gnosis Safe multisig contract.
 However, since we do not wish this contract to be upgradeable, we have cut out all relevant functionality.
 
-This contract has a set of owners and a treshold that are specified in the constructor and can no longer be changed.
+This contract has a set of owners and a threshold that are specified in the constructor and can no longer be changed.
 
 ## The following functionality is implemented in the contract:
 
 ### Function `execTransaction`
-Executes a `operation` {0: Call, 1: DelegateCall} transaction to `to` with `value` (Native Currency) and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
+Executes `operation` {0: Call, 1: DelegateCall} transaction to `to` with `value` (Native Currency) and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
 
 Also, accepts a set of signatures as a parameter. It is important that the signatures should be sorted by the addresses of the owners (signers) from smaller to larger to avoid double signatures.
 
-If the number of signatures is greater than or equal to the threshhold and all signatures are valid, the transaction will work successfully.
+If the number of signatures is greater than or equal to the threshold and all signatures are valid, the transaction will work successfully.
 
 Further checking of the signatures takes place in the `checkNSignatures` function.
 

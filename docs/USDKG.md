@@ -1,4 +1,4 @@
-# USDKG is gold-backed stablecoin represented as ERC20 token.
+# USDKG is a gold-backed stablecoin represented as ERC20 token.
 
 ## Role Permissions
 The contract is managed by two addresses (multisigs): `Owner` and `Compliance`.
@@ -7,11 +7,11 @@ The contract is managed by two addresses (multisigs): `Owner` and `Compliance`.
 - Lock any transfers of token by calling `pause` function
 - Unlock transfers of token by calling `unpause` function
 - Mint new tokens to particular address by calling `issue` function
-- Burn some tokens from particular address by calling `redeem` function
+- Burn some tokens from owner's address by calling `redeem` function
 - Set fee parameters which, in basic terms, are equal to `0` and can reach a maximum of `0.2%`
 
 `Compliance` can:
-- Add particular address to black list by calling `addBlackList` function
+- Add particular address to blacklist by calling `addBlackList` function
 - Remove particular address from black list by calling `removeBlackList` function
 - Burn all tokens in the blacklisted account by calling `destroyBlackFunds` function
 
@@ -36,7 +36,7 @@ If the fee value is not zero, it will be deducted from the transferred amount.
 #### Additional requirements for calling the function:
 - The protocol has not been blocked by the `pause` function
 - The sender is not blacklisted
-- User should have enough approveal from the spender's address
+- User should have enough approval from the spender's address
 
 ### Function `approve`
 Approve the passed address to spend the specified amount of tokens on behalf of sender
@@ -87,7 +87,7 @@ Mint specified amount to specified address.
 - Authorized role: `owner`
 
 ### Function `redeem`
-Burn specified amount from specified address.
+Burn specified amount from owner's address.
 
 #### Additional requirements for calling the function:
 - Authorized role: `owner`
