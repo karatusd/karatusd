@@ -1,5 +1,6 @@
 import { HardhatUserConfig, vars } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "./tasks"
 
 const deployerPrivateKey = process.env.DEPLOYER;
 const accounts = deployerPrivateKey ? [deployerPrivateKey] : []

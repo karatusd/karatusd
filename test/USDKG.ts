@@ -114,9 +114,9 @@ describe("USDKG", function () {
 
             expect(await USDKG.balanceOf(await owner.getAddress())).to.be.gt(ownerBalanceBefore)
 
-            await expect(USDKG.connect(user).redeem(await owner.getAddress(), 1000000)).to.be.reverted
-            await expect(USDKG.connect(compliance).redeem(await owner.getAddress(), 1000000)).to.be.reverted
-            await USDKG.connect(owner).redeem(await owner.getAddress(), 1000000)
+            await expect(USDKG.connect(user).redeem(1000000)).to.be.reverted
+            await expect(USDKG.connect(compliance).redeem(1000000)).to.be.reverted
+            await USDKG.connect(owner).redeem(1000000)
 
             expect(await USDKG.balanceOf(await owner.getAddress())).to.be.eq(ownerBalanceBefore)
 
