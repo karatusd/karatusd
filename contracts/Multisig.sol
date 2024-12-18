@@ -143,12 +143,12 @@ contract Multisig {
      * @param dataHash hash of the data (could be either a message hash or transaction hash)
      * @param data that should be signed (this is passed to an external validator contract)
      */
-    function checkSignatures(bytes32 dataHash, bytes memory data) public view {
+    function checkApprovals(bytes32 dataHash, bytes memory data) public view {
         // load threshold to avoid multiple storage loads
         uint256 _threshold = threshold;
         // check that a threshold is set
         require(_threshold > 0, "Threshold is not set");
-        checkNSignatures(dataHash, data, _threshold);
+        checkNApprovals(dataHash, data, _threshold);
     }
 
     /**
@@ -158,7 +158,7 @@ contract Multisig {
      * @param data that should be signed (this is passed to an external validator contract)
      * @param requiredSignatures amount of required valid signatures
      */
-    function checkNSignatures(bytes32 dataHash, bytes memory data, uint256 requiredSignatures) public view {
+    function checkNApprovals(bytes32 dataHash, bytes memory data, uint256 requiredSignatures) public view {
         uint256 count = 0;
         address currentOwner = owners[SENTINEL_OWNERS];
         while (currentOwner != SENTINEL_OWNERS) {
@@ -411,7 +411,7 @@ contract Multisig {
             // increase nonce and execute transaction.
             nonce++;
             txHash = keccak256(txHashData);
-            checkSignatures(txHash, txHashData);
+            checkApprovals(txHash, txHashData);
         }
         // we require some gas to emit the events (at least 2500) after the execution and some to perform code until the execution (500)
         // we also include the 1/64 in the check that is not send along with a call to counteract potential shortings because of EIP-150

@@ -8,7 +8,7 @@ This contract has a set of owners and a threshold that are specified in the cons
 ### Function `execTransaction`
 Executes `operation` {0: Call, 1: DelegateCall} transaction to `to` with `value` (Native Currency) and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
 
-All the checks of the approvals takes place in the `checkNSignatures` function.
+All the checks of the approvals takes place in the `checkNApprovals` function.
 If the checks passed correctly, the transaction starts executing.
 
 ### Function `approveHash`
@@ -18,7 +18,7 @@ After the transaction has been signed using the `approveHash` function.
 
 - Authorized role: owner
 
-### Function `checkNSignatures`
+### Function `checkNApprovals`
 
 The loop checks each owner to see if it has signed the passed hash using the `approveHash` functionю
 If enough owners (>= passed threshold) have signed the transaction, it is considered approved.
