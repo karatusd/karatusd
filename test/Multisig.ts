@@ -5,7 +5,7 @@ import { Interface } from "ethers";
 
 let OWNER_ABI = [
     "function issue(address _to, uint256 amount)",
-    "function redeem(address _from, uint256 amount)",
+    "function redeem(uint256 amount)",
     "function setParams(uint256 newBasisPoints)",
     "function pause()",
     "function unpause()"
@@ -139,40 +139,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            let owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            let owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-            let user_sig = await user.signMessage(ethers.getBytes(tx_hash))
-
-            await expect(
-                owner.connect(owner1).execTransaction(
-                    await USDKG.getAddress(),
-                    0,
-                    tx_data,
-                    0,
-                    0,
-                    0,
-                    0,
-                    "0x0000000000000000000000000000000000000000",
-                    "0x0000000000000000000000000000000000000000",
-                    owner2_sig
-                )
-            ).to.be.reverted
-
-            await expect(
-                owner.connect(owner1).execTransaction(
-                    await USDKG.getAddress(),
-                    0,
-                    tx_data,
-                    0,
-                    0,
-                    0,
-                    0,
-                    "0x0000000000000000000000000000000000000000",
-                    "0x0000000000000000000000000000000000000000",
-                    owner2_sig + user_sig.slice(2,)
-                )
-            ).to.be.reverted
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -182,13 +148,13 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.balanceOf(user_addr)).to.be.gt(0)
+            await USDKG.connect(user).transfer(owner_addr, 1000*1e6)
 
-            tx_data = owner_iface.encodeFunctionData("redeem", [ user_addr, 1000*1e6 ])
+            tx_data = owner_iface.encodeFunctionData("redeem", [1000*1e6])
 
             tx_hash = await owner.getTransactionHash(
                 await USDKG.getAddress(),
@@ -228,9 +194,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -240,11 +203,11 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.balanceOf(user_addr)).to.be.eq(0)
+            expect(await USDKG.balanceOf(owner_addr)).to.be.eq(0)
 
             tx_data = owner_iface.encodeFunctionData("setParams", [ 10 ])
 
@@ -286,9 +249,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -298,8 +258,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.basisPointsRate()).to.be.eq(10)
@@ -344,9 +303,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -356,8 +312,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             tx_data = owner_iface.encodeFunctionData("pause", [ ])
@@ -400,9 +355,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -412,8 +364,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.paused()).to.be.eq(true)
@@ -458,9 +409,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -470,8 +418,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.paused()).to.be.eq(false)
@@ -535,9 +482,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            let owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            let owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await compliance.execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -547,8 +491,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.isBlackListed(user_addr)).to.be.eq(true)
@@ -580,6 +523,19 @@ describe("Multisig", function () {
                 "0x0000000000000000000000000000000000000000",
                 tx_hash
             )
+
+            await expect ( compliance.execTransaction(
+                await USDKG.getAddress(),
+                0,
+                tx_data,
+                0,
+                0,
+                0,
+                0,
+                "0x0000000000000000000000000000000000000000",
+                "0x0000000000000000000000000000000000000000"
+            ) ).to.be.reverted
+
             await compliance.connect(owner2).approveHash(
                 await USDKG.getAddress(),
                 0,
@@ -593,9 +549,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await expect ( compliance.execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -605,8 +558,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             ) ).to.be.not.reverted
 
             tx_data = compliance_iface.encodeFunctionData("removeBlackList", [ user_addr ])
@@ -649,9 +601,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await compliance.execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -661,8 +610,7 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.isBlackListed(user_addr)).to.be.eq(false)
@@ -727,9 +675,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            let owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            let owner2_sig = "0x000000000000000000000000" + owner2_addr.slice(2,) + "000000000000000000000000" + owner2_addr.slice(2,) + "01"
-
             await owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -739,13 +684,13 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )
 
             expect(await USDKG.balanceOf(user_addr)).to.be.gt(0)
+            await USDKG.connect(user).transfer(owner_addr, 1000*1e6)
 
-            tx_data = owner_iface.encodeFunctionData("redeem", [ user_addr, 1000*1e6 ])
+            tx_data = owner_iface.encodeFunctionData("redeem", [1000*1e6 ])
 
             tx_hash = await owner.getTransactionHash(
                 await USDKG.getAddress(),
@@ -773,9 +718,6 @@ describe("Multisig", function () {
                 tx_hash
             )
 
-            owner1_sig = "0x000000000000000000000000" + owner1_addr.slice(2,) + "000000000000000000000000" + owner1_addr.slice(2,) + "01"
-            owner2_sig = await owner2.signMessage(ethers.getBytes(tx_hash))
-
             await expect( owner.connect(owner1).execTransaction(
                 await USDKG.getAddress(),
                 0,
@@ -785,11 +727,10 @@ describe("Multisig", function () {
                 0,
                 0,
                 "0x0000000000000000000000000000000000000000",
-                "0x0000000000000000000000000000000000000000",
-                owner2_sig + owner1_sig.slice(2,)
+                "0x0000000000000000000000000000000000000000"
             )).to.be.reverted
 
-            expect(await USDKG.balanceOf(user_addr)).to.be.gt(0)
+            expect(await USDKG.balanceOf(owner_addr)).to.be.gt(0)
         })
     })
 })

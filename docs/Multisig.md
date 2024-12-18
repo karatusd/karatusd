@@ -8,28 +8,20 @@ This contract has a set of owners and a threshold that are specified in the cons
 ### Function `execTransaction`
 Executes `operation` {0: Call, 1: DelegateCall} transaction to `to` with `value` (Native Currency) and pays `gasPrice` * `gasLimit` in `gasToken` token to `refundReceiver`.
 
-Also, accepts a set of signatures as a parameter. It is important that the signatures should be sorted by the addresses of the owners (signers) from smaller to larger to avoid double signatures.
-
-If the number of signatures is greater than or equal to the threshold and all signatures are valid, the transaction will work successfully.
-
-Further checking of the signatures takes place in the `checkNSignatures` function.
+All the checks of the approvals takes place in the `checkNSignatures` function.
+If the checks passed correctly, the transaction starts executing.
 
 ### Function `approveHash`
-Allow owner to approve hash (The main way to sign transaction).
+Allow owner to approve hash (The way to sign transaction).
 
-After the transaction has been signed using the `approveHash` function, the offchain creates a signature that looks like this:
-```ts
-"0x000000000000000000000000" + owner_addr.slice(2,) + "000000000000000000000000" + owner_addr.slice(2,) + "01"
-```
+After the transaction has been signed using the `approveHash` function.
 
 - Authorized role: owner
 
 ### Function `checkNSignatures`
-First, it checks the length of the signatures, making sure there are enough of them.
-Then it parses the signatures and starts iteratively working with each one:
-1) Extracts the signer's address from the signature
-2) Verifies that the specified address has signed the transaction passed for verification using the `approveHash` function.
-3) Checks that the signers are sorted strictly in ascending order.
+
+The loop checks each owner to see if it has signed the passed hash using the `approveHash` functionю
+If enough owners (>= passed threshold) have signed the transaction, it is considered approved.
 
 ### Function `simulateAndRevert`
 Simulation function to check the calldata

@@ -142,15 +142,13 @@ contract Multisig {
      * @notice checks whether the signature provided is valid for the provided data and hash. Reverts otherwise
      * @param dataHash hash of the data (could be either a message hash or transaction hash)
      * @param data that should be signed (this is passed to an external validator contract)
-     * @param signatures signature data that should be verified
-     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
      */
-    function checkSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures) public view {
+    function checkSignatures(bytes32 dataHash, bytes memory data) public view {
         // load threshold to avoid multiple storage loads
         uint256 _threshold = threshold;
         // check that a threshold is set
         require(_threshold > 0, "Threshold is not set");
-        checkNSignatures(dataHash, data, signatures, _threshold);
+        checkNSignatures(dataHash, data, _threshold);
     }
 
     /**
@@ -158,32 +156,18 @@ contract Multisig {
      * @dev since the EIP-1271 does an external call, be mindful of reentrancy attacks
      * @param dataHash hash of the data (could be either a message hash or transaction hash)
      * @param data that should be signed (this is passed to an external validator contract)
-     * @param signatures signature data that should be verified
-     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
      * @param requiredSignatures amount of required valid signatures
      */
-    function checkNSignatures(bytes32 dataHash, bytes memory data, bytes memory signatures, uint256 requiredSignatures) public view {
-        // check that the provided signature data is not too short
-        require(signatures.length >= requiredSignatures * 65, "Insufficient number of signatures");
-        // there cannot be an owner with address 0
-        address lastOwner = address(0);
-        address currentOwner;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        uint256 i;
-        for (i = 0; i < requiredSignatures; i++) {
-            (v, r, s) = signatureSplit(signatures, i);
-            require(v == 1);
-            // if v is 1 then it is an approved hash
-            // when handling approved hashes the address of the approver is encoded into r
-            currentOwner = address(uint160(uint256(r)));
-            // hashes are automatically approved by the sender of the message or when they have been pre-approved via a separate transaction
-            require(msg.sender == currentOwner || approvedHashes[currentOwner][dataHash] != 0, "Not approved signature");
-
-            require(currentOwner > lastOwner && owners[currentOwner] != address(0) && currentOwner != SENTINEL_OWNERS, "Signature error");
-            lastOwner = currentOwner;
+    function checkNSignatures(bytes32 dataHash, bytes memory data, uint256 requiredSignatures) public view {
+        uint256 count = 0;
+        address currentOwner = owners[SENTINEL_OWNERS];
+        while (currentOwner != SENTINEL_OWNERS) {
+            if (approvedHashes[currentOwner][dataHash] != 0) {
+                count++;
+            }
+            currentOwner = owners[currentOwner];
         }
+        require(count >= requiredSignatures, "Not enough approvals");
     }
 
     /**
@@ -393,8 +377,6 @@ contract Multisig {
      * @param gasPrice gas price that should be used for the payment calculation
      * @param gasToken token address (or 0 if ETH) that is used for the payment
      * @param refundReceiver address of receiver of gas payment (or 0 if tx.origin)
-     * @param signatures signature data that should be verified
-     *                   can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash
      * @return success Boolean indicating transaction's success
      */
     function execTransaction(
@@ -406,8 +388,7 @@ contract Multisig {
         uint256 baseGas,
         uint256 gasPrice,
         address gasToken,
-        address payable refundReceiver,
-        bytes memory signatures
+        address payable refundReceiver
     ) public payable virtual returns (bool success) {
         bytes32 txHash;
         // use scope here to limit variable lifetime and prevent `stack too deep` errors
@@ -430,7 +411,7 @@ contract Multisig {
             // increase nonce and execute transaction.
             nonce++;
             txHash = keccak256(txHashData);
-            checkSignatures(txHash, txHashData, signatures);
+            checkSignatures(txHash, txHashData);
         }
         // we require some gas to emit the events (at least 2500) after the execution and some to perform code until the execution (500)
         // we also include the 1/64 in the check that is not send along with a call to counteract potential shortings because of EIP-150
